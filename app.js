@@ -122,6 +122,8 @@
     const hit = ray.intersectObjects(houseGroup.children, true)[0];
     if (!hit) { $("panel").style.display = "none"; return; }
     let o = hit.object; while (o.parent && !o.userData.house) o = o.parent;
+    if (window.__sel) window.__sel.children[1].material.emissive.setHex(0x000000);
+    window.__sel = o; o.children[1].material = o.children[1].material.clone(); o.children[1].material.emissive.setHex(0x553300);   // roof glows on the picked house
     const c = (window.__claimBy || {})[o.userData.house];
     $("ptitle").textContent = c ? c.name + "'s house" : "House " + o.userData.house;
     $("pbody").textContent = c
