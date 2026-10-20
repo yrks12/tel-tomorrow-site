@@ -9,13 +9,13 @@
   scene.background = new THREE.Color(0x6ab0ff);
   scene.fog = new THREE.Fog(0x6ab0ff, 120, 420);
   const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 900);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x88aa66, 0.85));
-  const sun = new THREE.DirectionalLight(0xfff0d0, 0.9);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x88aa66, 0.55));
+  const sun = new THREE.DirectionalLight(0xfff0d0, 0.6);
   sun.position.set(-60, 90, 50);
   scene.add(sun);
 
   const mat = (c) => new THREE.MeshLambertMaterial({ color: c, flatShading: true });
-  const SEA = mat(0x1a8fe0), SAND = mat(0xffd27f), GRASS = mat(0x4cb233), ROAD = mat(0x2d2d33), LINE = mat(0xf5f5ee);
+  const SEA = mat(0x1a8fe0), SAND = mat(0xffd27f), GRASS = mat(0x3f9a30), ROAD = mat(0x2d2d33), LINE = mat(0xf5f5ee);
   const WALLS = [0xf5efe6, 0xffe9c4, 0xdbe9f7, 0xf8d9d3, 0xe3f2d6].map(mat);
   const ROOFS = [0xcc4030, 0xb5532a, 0x8a3b2c, 0xd9602f].map(mat);
 
@@ -95,10 +95,9 @@
     $("walk").textContent = m === "walk" ? "Fly over" : "Walk in";
     controls.enabled = m === "fly";
     if (m === "walk") { camera.position.set(0, 2.2, 8); yaw = Math.PI; pitch = 0; $("hint").textContent = "Drag to look · WASD / arrows or the stick to walk · click a house"; }
-    else { camera.position.set(60, 55, 85); controls.target.set(0, 0, 0); $("hint").textContent = "Drag to look around · scroll or pinch to zoom · click a house"; }
+    else { camera.position.set(60, 55, 85); camera.up.set(0, 1, 0); controls.target.set(0, 0, 0); controls.update(); $("hint").textContent = "Drag to look around · scroll or pinch to zoom · click a house"; }
   }
   $("walk").onclick = () => setMode(mode === "walk" ? "fly" : "walk");
-  $("fly").onclick = () => setMode("fly");
   addEventListener("keydown", (e) => (keys[e.key.toLowerCase()] = true));
   addEventListener("keyup", (e) => (keys[e.key.toLowerCase()] = false));
   let drag = null, moved = 0;
@@ -145,7 +144,7 @@
       camera.position.x += (-Math.sin(yaw) * f + Math.cos(yaw) * s) * sp;
       camera.position.z += (-Math.cos(yaw) * f - Math.sin(yaw) * s) * sp;
       camera.position.y = 2.2;
-      camera.rotation.order = "YXZ"; camera.rotation.y = yaw; camera.rotation.x = pitch;
+      camera.rotation.set(pitch, yaw, 0, "YXZ");
     } else controls.update();
     renderer.render(scene, camera);
     requestAnimationFrame(loop);
