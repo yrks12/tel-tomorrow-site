@@ -4,7 +4,7 @@
 (function () {
   const $ = (id) => document.getElementById(id);
   const T = Object.assign({ brand: "Tel Tomorrow", thing: "house", who: "Resident", data: "houses.json", glb: "assets/city.glb", sky: 0x8db8f0, horizon: 0xf3d9b6,
-    sunEuler: [66, 8, 118], sunColor: 0xffc88a, sunInt: 1.15, hemiSky: 0xa9c9f5, hemiGround: 0x6d7f4c, slots: 0, empty: "" }, window.TT || {});
+    verb: "click", walk: null, sunEuler: [66, 8, 118], sunColor: 0xffc88a, sunInt: 1.15, hemiSky: 0xa9c9f5, hemiGround: 0x6d7f4c, slots: 0, empty: "" }, window.TT || {});
   const canvas = $("c");
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -53,7 +53,7 @@
   function cardText(h) {
     const c = claimBy[h], day = (data.dayOf && data.dayOf[h - 1]) || data.day;
     if (c) return { title: c.name + "'s " + T.thing, body: "Hi " + c.name + "! Welcome to " + T.brand + ". Your " + T.thing + " is number " + h + ", it went up on Day " + day + ", and your name is on it. Come by any time.", claimed: true, day };
-    if (h > data.subs && T.empty) return { title: T.who + " #" + h + " (empty)", body: T.empty.replace("#N", "#" + h), claimed: false, day: data.day };
+    if (h > data.subs && T.empty) return { title: T.who + " #" + h, body: T.empty.replace("#N", "#" + h), claimed: false, day: data.day };
     return { title: T.who + " #" + h, body: "Hi " + T.who + " #" + h + "! Your " + T.thing + " went up on Day " + day + ". Comment your name under the newest Short to claim it, and it goes on it.", claimed: false, day };
   }
 
@@ -130,7 +130,8 @@
   const controls = new THREE.OrbitControls(camera, canvas);
   controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2.05; controls.minDistance = 6; controls.maxDistance = 420;
   let mode = "fly", yaw = 0, pitch = 0; const keys = {};
-  function walkStart() {   // stand in front of the first house (the nearest claimed one if any), facing it, so a wall never fills the screen
+  function walkStart() {
+    if (T.walk) { camera.position.set(T.walk.x, 2.2, T.walk.z); yaw = T.walk.yaw; pitch = T.walk.pitch; return; }   // stand in front of the first house (the nearest claimed one if any), facing it, so a wall never fills the screen
     const h = houses[(data.claims && data.claims[0] && data.claims[0].house) || 1] || Object.values(houses)[0];
     if (!h) { camera.position.set(center.x, 2.2, roadZ + 18); yaw = 0; pitch = 0; return; }
     const p = new THREE.Vector3(); h.getWorldPosition(p);
@@ -143,12 +144,12 @@
     mode = m;
     $("walk").textContent = m === "walk" ? "Fly over" : "Walk in";
     controls.enabled = m === "fly";
-    if (m === "walk") { walkStart(); $("hint").textContent = "Drag to look · WASD / arrows or the stick to walk · click a " + T.thing; }
+    if (m === "walk") { walkStart(); $("hint").textContent = "Drag to look · WASD / arrows or the stick to walk · " + T.verb + " a " + T.thing; }
     else {
       camera.up.set(0, 1, 0);
       camera.position.set(center.x + radius * 1.25, 18 + radius * 0.5, center.z - radius * 0.75);
       controls.target.copy(center); controls.update();
-      $("hint").textContent = "Drag to look around · scroll or pinch to zoom · click a " + T.thing;
+      $("hint").textContent = "Drag to look around · scroll or pinch to zoom · " + T.verb + " a " + T.thing;
     }
   }
   $("walk").onclick = () => setMode(mode === "walk" ? "fly" : "walk");
