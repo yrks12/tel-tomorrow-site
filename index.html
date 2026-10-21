@@ -30,6 +30,13 @@
   #hint { position:fixed; left:50%; top:76px; transform:translateX(-50%); background:var(--card); border:1px solid var(--line); border-radius:999px; padding:8px 16px; font-size:13px; color:#cfd6e4; text-align:center; max-width:calc(100vw - 32px); }
   footer { position:fixed; left:0; right:0; bottom:0; padding:10px 16px; font-size:12px; color:#9aa6bb; display:flex; flex-wrap:wrap; gap:6px 16px; justify-content:space-between; background:linear-gradient(transparent, rgba(8,14,24,.82) 55%); }
   footer a { color:#b9c4da; text-decoration:none; } footer a:hover { color:#fff; text-decoration:underline; }
+  #residents { position:fixed; inset:0; background:rgba(8,14,24,.94); display:none; overflow:auto; padding:70px 16px 80px; z-index:5; }
+  .rhead { position:fixed; top:0; left:0; right:0; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; background:rgba(8,14,24,.96); }
+  .rhead h2 { margin:0; font-size:18px; color:var(--sun); }
+  #rgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; }
+  .rcard { text-align:left; display:block; border-radius:14px; padding:14px; }
+  .rcard b { display:block; font-size:17px; color:#fff; } .rcard i { display:block; font-style:normal; font-size:12px; color:var(--sun); margin:2px 0 6px; }
+  .rcard p { margin:0; font-size:13px; line-height:1.4; color:#cfd6e4; } .rcard.on { border-color:var(--sun); }
   .sr { position:absolute; left:-9999px; }
   @media (max-width:560px) { .btns { bottom:84px; } #panel { bottom:150px; left:16px; right:16px; width:auto; } #hint { top:66px; font-size:12px; } }
 </style>
@@ -43,6 +50,7 @@
 <div id="hint">Drag to look around · scroll or pinch to zoom · click a house</div>
 <div class="btns">
   <button id="walk">Walk in</button>
+  <button id="rbtn">Residents</button>
   <a class="btn primary" href="https://www.youtube.com/@TelTomorrow?sub_confirmation=1" target="_blank" rel="noopener">Subscribe to get a house</a>
 </div>
 <div id="panel" role="dialog" aria-live="polite">
@@ -51,7 +59,7 @@
   <div class="row"><a class="btn primary" id="pclaim" href="https://www.youtube.com/@TelTomorrow" target="_blank" rel="noopener">Claim your house</a><button id="pclose">Close</button></div>
 </div>
 <footer>
-  <span>Made with AI tools by an Israeli team. A name appears only if its owner comments it.</span>
+  <span>Made with AI tools by an Israeli team. A name appears only if its owner comments it or shows their subscription publicly on YouTube; everyone else is a numbered resident.</span>
   <span>
     <a href="https://www.youtube.com/@TelTomorrow" target="_blank" rel="noopener">YouTube</a> ·
     <a href="https://chairsidereels.com" target="_blank" rel="noopener">Built with Chairside</a> ·
@@ -59,9 +67,14 @@
     <a href="https://villas.yairtech.co.uk" target="_blank" rel="noopener">Villas</a>
   </span>
 </footer>
+<div id="residents" role="dialog" aria-label="Residents">
+  <div class="rhead"><h2>Everyone who lives here</h2><button id="rclose">Close</button></div>
+  <div id="rgrid"></div>
+</div>
 <ul class="sr" id="list"></ul>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
