@@ -3,6 +3,8 @@
 // Data: houses.json = {day, subs, updated, claims:[{house, name, day}], dayOf:[day each house went up]}.
 (function () {
   const $ = (id) => document.getElementById(id);
+  const T = Object.assign({ brand: "Tel Tomorrow", thing: "house", who: "Resident", data: "houses.json", glb: "assets/city.glb", sky: 0x8db8f0, horizon: 0xf3d9b6,
+    sunEuler: [66, 8, 118], sunColor: 0xffc88a, sunInt: 1.15, hemiSky: 0xa9c9f5, hemiGround: 0x6d7f4c, slots: 0, empty: "" }, window.TT || {});
   const canvas = $("c");
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -10,16 +12,16 @@
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
-  const SKY = 0x8db8f0, HORIZON = 0xf3d9b6;           // the render's blue sky with a warm low horizon
+  const SKY = T.sky, HORIZON = T.horizon;           // the render's blue sky with a warm low horizon
   scene.background = new THREE.Color(SKY);
   scene.fog = new THREE.Fog(HORIZON, 160, 520);
   const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 1200);   // 35 mm lens, same as the Shorts
 
   // the render's sun: warm, low, long side shadows (Blender euler 66,8,118 deg, color 1.0/0.78/0.52)
-  scene.add(new THREE.HemisphereLight(0xa9c9f5, 0x6d7f4c, 0.5));
-  const sun = new THREE.DirectionalLight(0xffc88a, 1.15);
+  scene.add(new THREE.HemisphereLight(T.hemiSky, T.hemiGround, 0.5));
+  const sun = new THREE.DirectionalLight(T.sunColor, T.sunInt);
   (function aim() {
-    const r = (d) => (d * Math.PI) / 180, a = r(66), b = r(8), c = r(118);
+    const r = (d) => (d * Math.PI) / 180, a = r(T.sunEuler[0]), b = r(T.sunEuler[1]), c = r(T.sunEuler[2]);
     let v = [0, 0, -1];
     const rx = (p) => [p[0], p[1] * Math.cos(a) - p[2] * Math.sin(a), p[1] * Math.sin(a) + p[2] * Math.cos(a)];
     const ry = (p) => [p[0] * Math.cos(b) + p[2] * Math.sin(b), p[1], -p[0] * Math.sin(b) + p[2] * Math.cos(b)];
@@ -50,8 +52,9 @@
 
   function cardText(h) {
     const c = claimBy[h], day = (data.dayOf && data.dayOf[h - 1]) || data.day;
-    if (c) return { title: c.name + "'s house", body: "Hi " + c.name + "! Welcome to Tel Tomorrow. Your house is number " + h + ", it went up on Day " + day + ", and your name is on the door. Walk in any time.", claimed: true, day };
-    return { title: "Resident #" + h, body: "Hi Resident #" + h + "! Your house went up on Day " + day + ". Comment your name under the newest Short to claim it, and it goes on the door.", claimed: false, day };
+    if (c) return { title: c.name + "'s " + T.thing, body: "Hi " + c.name + "! Welcome to " + T.brand + ". Your " + T.thing + " is number " + h + ", it went up on Day " + day + ", and your name is on it. Come by any time.", claimed: true, day };
+    if (h > data.subs && T.empty) return { title: T.who + " #" + h + " (empty)", body: T.empty.replace("#N", "#" + h), claimed: false, day: data.day };
+    return { title: T.who + " #" + h, body: "Hi " + T.who + " #" + h + "! Your " + T.thing + " went up on Day " + day + ". Comment your name under the newest Short to claim it, and it goes on it.", claimed: false, day };
   }
 
   function showCard(h) {
@@ -74,13 +77,13 @@
   function buildList() {
     const ul = $("list"); ul.innerHTML = "";
     const grid = $("rgrid"); if (grid) grid.innerHTML = "";
-    for (let h = 1; h <= data.subs; h++) {
+    for (let h = 1; h <= Math.max(data.subs, T.slots); h++) {
       const t = cardText(h);
-      const li = document.createElement("li"); li.textContent = "House " + h + ": " + (claimBy[h] ? claimBy[h].name : "unclaimed"); ul.appendChild(li);
+      const li = document.createElement("li"); li.textContent = T.thing[0].toUpperCase() + T.thing.slice(1) + " " + h + ": " + (claimBy[h] ? claimBy[h].name : "unclaimed"); ul.appendChild(li);
       if (grid) {
         const d = document.createElement("button"); d.className = "rcard" + (t.claimed ? " on" : "");
         d.innerHTML = "<b></b><i></i><p></p>";
-        d.children[0].textContent = t.title; d.children[1].textContent = "House " + h + " · Day " + t.day; d.children[2].textContent = t.body;
+        d.children[0].textContent = t.title; d.children[1].textContent = T.thing[0].toUpperCase() + T.thing.slice(1) + " " + h + " · Day " + t.day; d.children[2].textContent = t.body;
         d.onclick = () => { $("residents").style.display = "none"; focusHouse(h); showCard(h); };
         grid.appendChild(d);
       }
@@ -195,8 +198,8 @@
     requestAnimationFrame(loop);
   })(last);
 
-  fetch("houses.json?" + Date.now()).then((r) => r.json()).catch(() => ({ day: 1, subs: 9, claims: [] })).then((d) => {
+  fetch(T.data + "?" + Date.now()).then((r) => r.json()).catch(() => ({ day: 1, subs: 9, claims: [] })).then((d) => {
     data = d; (d.claims || []).forEach((c) => (claimBy[c.house] = c));
-    new THREE.GLTFLoader().load("assets/city.glb?d=" + d.day + "-" + d.subs, build, undefined, (e) => { $("hint").textContent = "The city could not load. Reload the page."; console.error(e); });
+    new THREE.GLTFLoader().load(T.glb + "?d=" + d.day + "-" + d.subs, build, undefined, (e) => { $("hint").textContent = "The city could not load. Reload the page."; console.error(e); });
   });
 })();
