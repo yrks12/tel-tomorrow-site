@@ -127,11 +127,20 @@
   const controls = new THREE.OrbitControls(camera, canvas);
   controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2.05; controls.minDistance = 6; controls.maxDistance = 420;
   let mode = "fly", yaw = 0, pitch = 0; const keys = {};
+  function walkStart() {   // stand in front of the first house (the nearest claimed one if any), facing it, so a wall never fills the screen
+    const h = houses[(data.claims && data.claims[0] && data.claims[0].house) || 1] || Object.values(houses)[0];
+    if (!h) { camera.position.set(center.x, 2.2, roadZ + 18); yaw = 0; pitch = 0; return; }
+    const p = new THREE.Vector3(); h.getWorldPosition(p);
+    let dx = p.x - center.x, dz = p.z - center.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+    if (l < 1) { dx = 0; dz = 1; }
+    camera.position.set(p.x + dx * 26, 2.2, p.z + dz * 26);
+    yaw = Math.atan2(dx, dz); pitch = 0.12;
+  }
   function setMode(m) {
     mode = m;
     $("walk").textContent = m === "walk" ? "Fly over" : "Walk in";
     controls.enabled = m === "fly";
-    if (m === "walk") { camera.position.set(center.x, 2.2, roadZ + 18); yaw = 0; pitch = 0; $("hint").textContent = "Drag to look · WASD / arrows or the stick to walk · click a house"; }
+    if (m === "walk") { walkStart(); $("hint").textContent = "Drag to look · WASD / arrows or the stick to walk · click a house"; }
     else {
       camera.up.set(0, 1, 0);
       camera.position.set(center.x + radius * 1.25, 18 + radius * 0.5, center.z - radius * 0.75);
