@@ -122,7 +122,7 @@
     });
     setMode("fly");
     $("day").textContent = "Day " + data.day;
-    $("count").textContent = Math.max(data.subs, T.slots);
+    $("count").textContent = data.subs;
     buildList();
   }
 
