@@ -143,12 +143,12 @@
     mode = m;
     $("walk").textContent = m === "walk" ? "Fly over" : "Walk in";
     controls.enabled = m === "fly";
-    if (m === "walk") { walkStart(); $("hint").textContent = "Drag to look · WASD / arrows or the stick to walk · click a house"; }
+    if (m === "walk") { walkStart(); $("hint").textContent = "Drag to look · WASD / arrows or the stick to walk · click a " + T.thing; }
     else {
       camera.up.set(0, 1, 0);
       camera.position.set(center.x + radius * 1.25, 18 + radius * 0.5, center.z - radius * 0.75);
       controls.target.copy(center); controls.update();
-      $("hint").textContent = "Drag to look around · scroll or pinch to zoom · click a house";
+      $("hint").textContent = "Drag to look around · scroll or pinch to zoom · click a " + T.thing;
     }
   }
   $("walk").onclick = () => setMode(mode === "walk" ? "fly" : "walk");
