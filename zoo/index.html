@@ -39,18 +39,19 @@
   .rcard p { margin:0; font-size:13px; line-height:1.4; color:#cfd6e4; } .rcard.on { border-color:var(--sun); }
   .sr { position:absolute; left:-9999px; }
   @media (max-width:560px) { .btns { bottom:84px; } #panel { bottom:150px; left:16px; right:16px; width:auto; } #hint { top:66px; font-size:12px; } }
+header {flex-wrap:wrap;gap:6px} .stat {font-size:12px;padding:6px 10px} #panel {z-index:4} @media(max-width:560px){#hint{top:92px;width:calc(100% - 32px);border-radius:12px}.btns{bottom:120px} #panel{bottom:120px;max-height:65vh;overflow:auto}}
 </style>
 </head>
 <body>
 <canvas id="c" aria-label="Interactive 3D map of Zoo Tomorrow; use the buttons below for a text list of the pens"></canvas>
 <header>
   <h1>Zoo Tomorrow</h1>
-  <div class="stat"><b id="day">Day 1</b> &nbsp;·&nbsp; <b id="count">0</b> claimed &nbsp;·&nbsp; <b>8</b> pens</div>
+  <div class="stat"><b id="day">Day 1</b> &nbsp;·&nbsp; <b id="count">0</b> pens occupied</div>
 </header>
 <div id="hint">Drag to look around · scroll or pinch to zoom · tap a pen</div>
 <div class="btns" style="bottom:140px">
   <button id="walk">Walk in</button>
-  <button id="rbtn">Pens</button>
+  <button id="rbtn">Residents</button>
   <a class="btn primary" href="https://www.youtube.com/@ZooTomorrow?sub_confirmation=1" target="_blank" rel="noopener">Subscribe and an animal moves in</a>
 </div>
 <div id="panel" role="dialog" aria-live="polite">
@@ -76,7 +77,7 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-<script>window.TT = { brand: "Zoo Tomorrow", thing: "pen", who: "Animal", data: "zoo.json", glb: "assets/zoo.glb", sky: 0xf2c585, horizon: 0xf6dcae, sunEuler: [52, 0, 60], sunColor: 0xffdb8c, sunInt: 1.3, hemiSky: 0xffd9a0, hemiGround: 0x9a7a3a, slots: 8, verb: "tap", walk: { x: 0, z: -4, yaw: 0, pitch: 0.12 }, empty: "Hi Animal #N! Your pen is ready and you live here already. Comment your name under the newest Zoo Tomorrow Short to claim it, and it goes on the gate." };</script>
+<script>window.TT = {"brand": "Zoo Tomorrow", "thing": "pen", "who": "Animal", "data": "zoo.json", "glb": "assets/zoo-finished.glb", "liveSlots": true, "slots": 48, "slotNodes": ["slot_1", "slot_2", "slot_3", "slot_4", "slot_5", "slot_6", "slot_7", "slot_8", "slot_9", "slot_10", "slot_11", "slot_12", "slot_13", "slot_14", "slot_15", "slot_16", "slot_17", "slot_18", "slot_19", "slot_20", "slot_21", "slot_22", "slot_23", "slot_24", "slot_25", "slot_26", "slot_27", "slot_28", "slot_29", "slot_30", "slot_31", "slot_32", "slot_33", "slot_34", "slot_35", "slot_36", "slot_37", "slot_38", "slot_39", "slot_40", "slot_41", "slot_42", "slot_43", "slot_44", "slot_45", "slot_46", "slot_47", "slot_48"], "staticEnd": true, "sky": 9414832, "horizon": 9414832, "exposure": 0.58, "sunEuler": [34.38, -28.65, -37.24], "sunColor": 16767907, "sunInt": 0, "gltfLightScale": 0.002, "hemiSky": 12047070, "hemiGround": 3427121, "hemiInt": 0.85, "fly": {"position": [55, 108, 72], "target": [0, 0, -2], "lens": 65, "speed": 0.08}, "walk": {"x": 0, "y": 3, "z": 24, "yaw": 0.5, "pitch": -0.08}, "fog": {"color": 9414832, "near": 200, "far": 500}, "verb": "tap"};</script>
 <script src="../app.js"></script>
 </body>
 </html>

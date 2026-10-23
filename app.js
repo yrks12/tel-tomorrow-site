@@ -3,8 +3,9 @@
 // Data: houses.json = {day, subs, updated, claims:[{house, name, day}], dayOf:[day each house went up]}.
 (function () {
   const $ = (id) => document.getElementById(id);
-  const T = Object.assign({ brand: "Tel Tomorrow", thing: "house", who: "Resident", data: "houses.json", glb: "assets/city.glb", sky: 0x8db8f0, horizon: 0xf3d9b6,
-    verb: "click", walk: null, sunEuler: [66, 8, 118], sunColor: 0xffc88a, sunInt: 1.15, hemiSky: 0xa9c9f5, hemiGround: 0x6d7f4c, slots: 0, empty: "" }, window.TT || {});
+  const T = Object.assign({ brand: "Tel Tomorrow", thing: "house", who: "Resident", data: "houses.json", glb: "assets/city-finished.glb", sky: 0x998578, horizon: 0xb19a80,
+    liveSlots: true, exposure: .65, gltfLightScale: .002, fly: {position:[100,85,100],target:[12,14,-22],lens:48,speed:.08}, fog:{color:0xb19a80,near:450,far:1400},
+    verb: "tap", walk: {x:57,y:3,z:10,yaw:.78,pitch:.08}, sunEuler: [76, -15, -145], sunColor: 0xffa859, sunInt: 0, hemiSky: 0xb8a999, hemiGround: 0x35432c, hemiInt:.65, slots: 0, empty: "" }, window.TT ? Object.assign({liveSlots:false, fly:null, fog:null, exposure:null, gltfLightScale:null}, window.TT) : {});
   const canvas = $("c");
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -39,6 +40,7 @@
   let center = new THREE.Vector3(), radius = 60, roadZ = -12;
   const claimBy = {};
 
+  const labels = [];
   function nameSprite(text) {
     const cv = document.createElement("canvas"), g = cv.getContext("2d");
     g.font = "bold 84px Anton, Impact, 'Arial Narrow Bold', sans-serif";
@@ -47,16 +49,17 @@
     g.font = "bold 84px Anton, Impact, 'Arial Narrow Bold', sans-serif";
     g.fillStyle = "rgba(18,23,36,.92)"; g.beginPath(); g.roundRect ? g.roundRect(0, 10, w, 120, 26) : g.rect(0, 10, w, 120); g.fill();
     g.fillStyle = "#ffd84d"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text.toUpperCase(), w / 2, 72);
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false, transparent: true }));
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false, transparent: true, toneMapped: false }));
     sp.scale.set(w / 150 * 1.7, 1.7, 1); sp.renderOrder = 10;
+    sp.userData.aspect = w / 150;
     return sp;
   }
 
   function cardText(h) {
-    const c = claimBy[h], day = (data.dayOf && data.dayOf[h - 1]) || data.day;
+    const c = claimBy[h], day = (data.dayOf && data.dayOf[h - 1]) || (c && c.day) || data.day;
     if (c) return { title: c.name + "'s " + T.thing, body: "Hi " + c.name + "! Welcome to " + T.brand + ". Your " + T.thing + " is number " + h + ", it went up on Day " + day + ", and your name is on it. Come by any time.", claimed: true, day };
     if (h > data.subs && T.empty) return { title: T.who + " #" + h, body: T.empty.replace("#N", "#" + h), claimed: false, day: data.day };
-    return { title: T.who + " #" + h, body: "Hi " + T.who + " #" + h + "! Your " + T.thing + " went up on Day " + day + ". Comment your name under the newest Short to claim it, and it goes on it.", claimed: false, day };
+    return { title: T.who + " #" + h, body: "Hi " + T.who + " #" + h + "! Welcome to " + T.brand + ". Your " + T.thing + " is number " + h + ", it went up on Day " + day + ". Comment your name under the newest Short to claim it, and it goes on it.", claimed: false, day };
   }
 
   function showCard(h) {
@@ -79,7 +82,9 @@
   function buildList() {
     const ul = $("list"); ul.innerHTML = "";
     const grid = $("rgrid"); if (grid) grid.innerHTML = "";
-    for (let h = 1; h <= Math.max(data.subs, T.slots); h++) {
+    const order = Array.from({length: T.liveSlots ? data.subs : Math.max(data.subs, T.slots)}, (_,i) => i+1);
+    order.sort((a,b) => Number(!!claimBy[b])-Number(!!claimBy[a]) || a-b);
+    for (const h of order) {
       const t = cardText(h);
       const li = document.createElement("li"); li.textContent = T.thing[0].toUpperCase() + T.thing.slice(1) + " " + h + ": " + (claimBy[h] ? claimBy[h].name : "unclaimed"); ul.appendChild(li);
       if (grid) {
@@ -132,8 +137,37 @@
       if (o.isMesh) { o.castShadow = !o.userData.slotProxy; o.receiveShadow = !o.userData.slotProxy; }
       if (o.userData && o.userData.house) houses[o.userData.house] = o;
     });
+    if (T.liveSlots) Object.entries(houses).forEach(([h,n]) => { n.visible = Number(h) <= data.subs; });
+    if (T.liveSlots) {
+      const materials = new Set();
+      let treeIndex = 0;
+      gltf.scene.traverse(o => {
+        if (T.thing === "house" && /garden (tree|clusters)/.test(o.name)) {
+          const p = o.getWorldPosition(new THREE.Vector3());
+          const nearHome = Object.values(houses).some(n => n.visible && n.position.distanceTo(p) < 10);
+          o.visible = nearHome && treeIndex++ % 3 === 0;
+        }
+        if (T.thing === "house" && /garden|civic grove|plaza trees/.test(o.name)) {
+          const p=o.getWorldPosition(new THREE.Vector3());
+          if (Math.hypot(p.x-T.walk.x,p.z-T.walk.z)<25) o.visible=false;
+        }
+        if (!o.isMesh) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach(m => {
+          if (materials.has(m)) return;
+          materials.add(m);
+          if (T.thing === "house" && /foliage/.test(m.name)) m.color.lerp(new THREE.Color(0xa5b66a), .28);
+          if (/deep teal sea/.test(m.name)) { m.roughness = .62; m.metalness = 0; }
+          if (/warm windows/.test(m.name)) { m.emissive.setRGB(1,.32,.075); m.emissiveIntensity = 1.6; }
+          if (T.thing === "pen" && /fountain turquoise/.test(m.name)) m.emissiveIntensity = .35;
+        });
+        // The enormous ground/sea mesh must receive shadows, never cast them.
+        if (mats.some(m => /sage lawns|deep teal sea/.test(m.name))) o.castShadow = false;
+      });
+    }
     scene.add(gltf.scene);
-    const pts = Object.values(houses).map((n) => { const v = new THREE.Vector3(); n.getWorldPosition(v); return v; });
+    window.__TT = {scene, houses, camera, data, ready:true};
+    const pts = Object.values(houses).filter(n => !T.liveSlots || n.visible).map((n) => { const v = new THREE.Vector3(); n.getWorldPosition(v); return v; });
     if (pts.length) {
       center.set(pts.reduce((s, p) => s + p.x, 0) / pts.length, 0, pts.reduce((s, p) => s + p.z, 0) / pts.length);
       radius = Math.max(26, Math.max(...pts.map((p) => Math.hypot(p.x - center.x, p.z - center.z))) * 1.1 + 22);
@@ -141,13 +175,40 @@
     sun.position.copy(center).addScaledVector(sun.userData.dir, -160);
     sun.target.position.copy(center);
     sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
-    const sh = Math.max(60, radius * 1.4);
+    const sh = T.liveSlots ? Math.max(50, radius * .85) : Math.max(60, radius * 1.4);
     Object.assign(sun.shadow.camera, { left: -sh, right: sh, top: sh, bottom: -sh, near: 1, far: 400 });
     sun.shadow.camera.updateProjectionMatrix(); sun.shadow.bias = -0.0005;
-    (data.claims || []).slice(0, 40).forEach((c) => {
-      const n = houses[c.house]; if (!n) return;
-      const sp = nameSprite(c.name); sp.position.set(0, 8.4, 0); n.add(sp);
+    if (T.liveSlots) { sun.shadow.mapSize.set(4096,4096); sun.shadow.normalBias=.6; }
+    if (T.liveSlots) gltf.scene.traverse(o => {
+      if (o.isDirectionalLight) {
+        o.castShadow=true; o.shadow.mapSize.set(4096,4096);
+        // Exported directional lights sit at the origin; move along their original
+        // direction so the shadow frustum covers the scene without changing light.
+        const direction = o.getWorldDirection(new THREE.Vector3());
+        const position = center.clone().addScaledVector(direction,160);
+        o.position.copy(o.parent.worldToLocal(position));
+        o.target.position.copy(center); scene.add(o.target);
+        Object.assign(o.shadow.camera,{left:-sh,right:sh,top:sh,bottom:-sh,near:1,far:450});
+        o.shadow.camera.updateProjectionMatrix();o.shadow.bias=-.0008;o.shadow.normalBias=.65;
+      }
     });
+    (data.claims || []).filter(c => c.house <= data.subs).forEach((c) => {
+      const n = houses[c.house]; if (!n) return;
+      const sp = nameSprite(c.name); sp.position.set(0, T.thing === "pen" ? 5 : 8.4, 0); n.add(sp);
+      if (T.liveSlots) labels.push({sp, number:false});
+    });
+    if (T.liveSlots && T.thing === "pen") {
+      Object.entries(houses).forEach(([h,n]) => {
+        if (+h > Math.max(24,data.subs)) return;
+        const sp = nameSprite(String(h));
+        const p = n.getWorldPosition(new THREE.Vector3());
+        sp.position.copy(p).add(new THREE.Vector3(0,2.8,1.8));
+        sp.userData.penNumber = +h;
+        sp.userData.anchor = sp.position.clone();
+        if (!n.visible) sp.material.color.setHex(0xa0c2c8);
+        scene.add(sp); labels.push({sp,number:true,empty:!n.visible});
+      });
+    }
     setMode("fly");
     $("day").textContent = "Day " + data.day;
     $("count").textContent = data.subs;
@@ -206,7 +267,7 @@
     if (moved > 6) return;
     mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
     ray.setFromCamera(mouse, camera);
-    const hit = ray.intersectObjects(Object.values(houses), true)[0];
+    const hit = ray.intersectObjects(Object.values(houses).filter(n => n.visible), true)[0];
     if (!hit) { $("panel").style.display = "none"; return; }
     let o = hit.object; while (o.parent && !(o.userData && o.userData.house)) o = o.parent;
     showCard(o.userData.house);
@@ -214,7 +275,7 @@
   $("pclose").onclick = () => ($("panel").style.display = "none");
   if ($("rbtn")) { $("rbtn").onclick = () => ($("residents").style.display = "block"); $("rclose").onclick = () => ($("residents").style.display = "none"); }
 
-  function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; if (T.fly && T.fly.lens) camera.fov = 2 * Math.atan(18 / T.fly.lens / camera.aspect) * 180 / Math.PI; camera.updateProjectionMatrix(); }
+  function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; if (T.fly && T.fly.lens) camera.fov = 2 * Math.atan(18 / T.fly.lens / (T.liveSlots ? Math.min(camera.aspect,.72) : camera.aspect)) * 180 / Math.PI; camera.updateProjectionMatrix(); }
   addEventListener("resize", resize); resize();
   let last = performance.now();
   (function loop(t) {
@@ -228,12 +289,43 @@
       camera.position.y = T.walk && T.walk.y != null ? T.walk.y : 2.2;
       camera.rotation.set(pitch, yaw, 0, "YXZ");
     } else controls.update();
+    if (T.liveSlots && labels.length) {
+      camera.updateMatrixWorld();
+      const occupied = [];
+      const ordered = labels.slice().sort((a,b) => (mode === "walk" ? Number(a.number)-Number(b.number) : Number(b.number)-Number(a.number)) || camera.position.distanceTo(a.sp.getWorldPosition(new THREE.Vector3()))-camera.position.distanceTo(b.sp.getWorldPosition(new THREE.Vector3())));
+      let named = 0;
+      ordered.forEach(({sp,number,empty}) => {
+        const p = number ? sp.userData.anchor.clone() : sp.getWorldPosition(new THREE.Vector3());
+        const projected = p.clone().project(camera);
+        const depth = -p.clone().applyMatrix4(camera.matrixWorldInverse).z;
+        const height = number ? 18 : (named === 0 ? 32 : 26);
+        const width = height * sp.userData.aspect;
+        let x = (projected.x+1)*innerWidth/2, y=(1-projected.y)*innerHeight/2;
+        if (number) {
+          const baseY=y;
+          for (const dy of [0,-18,18,-36,36]) {
+            y=baseY+dy;
+            if (!occupied.some(b => x-width/2-3<b.r && x+width/2+3>b.l && y-height/2-3<b.b && y+height/2+3>b.t)) break;
+          }
+          sp.position.copy(new THREE.Vector3(x/innerWidth*2-1,1-y/innerHeight*2,projected.z).unproject(camera));
+        }
+        const box = {l:x-width/2-3,r:x+width/2+3,t:y-height/2-3,b:y+height/2+3};
+        sp.visible = depth>0 && projected.z<1 && x>width/2 && x<innerWidth-width/2 && y>145 && y<innerHeight-205 && (number || mode==="walk");
+        if (sp.visible && occupied.some(b => box.l<b.r && box.r>b.l && box.t<b.b && box.b>b.t)) sp.visible=false;
+        if (sp.visible) {
+          occupied.push(box); if (!number) named++;
+          const size=2*depth*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*height/innerHeight;
+          const scale = sp.parent.getWorldScale(new THREE.Vector3());
+          sp.scale.set(size*sp.userData.aspect/scale.x,size/scale.y,1);
+        }
+      });
+    }
     renderer.render(scene, camera);
     requestAnimationFrame(loop);
   })(last);
 
   fetch(T.data + "?" + Date.now()).then((r) => r.json()).catch(() => ({ day: 1, subs: 9, claims: [] })).then((d) => {
-    data = d; (d.claims || []).forEach((c) => (claimBy[c.house] = c));
+    data = d; (d.claims || []).filter(c => c.house <= d.subs).forEach((c) => (claimBy[c.house] = c));
     new THREE.GLTFLoader().load(T.glb + "?d=" + d.day + "-" + d.subs, build, undefined, (e) => { $("hint").textContent = "The city could not load. Reload the page."; console.error(e); });
   });
 })();
