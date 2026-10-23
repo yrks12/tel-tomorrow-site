@@ -9,16 +9,18 @@
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.outputEncoding = THREE.sRGBEncoding;     // Blender's "Standard" view transform: no tone mapping
+  if (T.exposure != null) { renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = T.exposure; }
+  if (T.physicalLights) renderer.physicallyCorrectLights = true;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
   const SKY = T.sky, HORIZON = T.horizon;           // the render's blue sky with a warm low horizon
   scene.background = new THREE.Color(SKY);
-  scene.fog = new THREE.Fog(HORIZON, 160, 520);
+  scene.fog = new THREE.Fog(T.fog ? T.fog.color : HORIZON, T.fog ? T.fog.near : 160, T.fog ? T.fog.far : 520);
   const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 1200);   // 35 mm lens, same as the Shorts
 
   // the render's sun: warm, low, long side shadows (Blender euler 66,8,118 deg, color 1.0/0.78/0.52)
-  scene.add(new THREE.HemisphereLight(T.hemiSky, T.hemiGround, 0.5));
+  scene.add(new THREE.HemisphereLight(T.hemiSky, T.hemiGround, T.hemiInt == null ? 0.5 : T.hemiInt));
   const sun = new THREE.DirectionalLight(T.sunColor, T.sunInt);
   (function aim() {
     const r = (d) => (d * Math.PI) / 180, a = r(T.sunEuler[0]), b = r(T.sunEuler[1]), c = r(T.sunEuler[2]);
@@ -95,13 +97,39 @@
     const p = new THREE.Vector3(); n.getWorldPosition(p);
     setMode("fly");
     controls.target.copy(p);
-    camera.position.set(p.x - 12, 9, p.z + 16);
+    camera.position.set(p.x - 12, T.staticEnd ? p.y + 9 : 9, p.z + 16);
     controls.update();
   }
 
   function build(gltf) {
+    // Opt-in static end frame and slot names for clone exports without house extras.
+    if (T.staticEnd && gltf.animations.length) {
+      const mixer = new THREE.AnimationMixer(gltf.scene);
+      gltf.animations.forEach((clip) => {
+        const action = mixer.clipAction(clip);
+        action.setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play();
+      });
+      mixer.update(Math.max(...gltf.animations.map((clip) => clip.duration)));
+    }
+    (T.slotNodes || []).forEach((name, i) => {
+      const node = gltf.scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name));
+      if (node) {
+        node.userData.house = i + 1;
+        if (node.userData.pickSize) {
+          const proxy = new THREE.Mesh(new THREE.BoxGeometry(...node.userData.pickSize), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+          proxy.userData.slotProxy = true;
+          node.add(proxy);
+        }
+      }
+    });
+    (T.pointLights || []).forEach((cfg) => {
+      const light = new THREE.PointLight(cfg.color, cfg.intensity, cfg.distance);
+      light.position.fromArray(cfg.position); scene.add(light);
+    });
+    gltf.scene.updateMatrixWorld(true);
     gltf.scene.traverse((o) => {
-      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+      if (o.isLight && T.gltfLightScale != null) o.intensity *= T.gltfLightScale;
+      if (o.isMesh) { o.castShadow = !o.userData.slotProxy; o.receiveShadow = !o.userData.slotProxy; }
       if (o.userData && o.userData.house) houses[o.userData.house] = o;
     });
     scene.add(gltf.scene);
@@ -128,10 +156,13 @@
 
   // ---- camera: orbit (fly over) or street-level walk
   const controls = new THREE.OrbitControls(camera, canvas);
-  controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2.05; controls.minDistance = 6; controls.maxDistance = 420;
+  controls.enableDamping = true;
+  controls.autoRotate = !!(T.fly && T.fly.speed);
+  controls.autoRotateSpeed = T.fly && T.fly.speed || 0;
+  controls.addEventListener("start", () => { controls.autoRotate = false; }); controls.maxPolarAngle = Math.PI / 2.05; controls.minDistance = 6; controls.maxDistance = 420;
   let mode = "fly", yaw = 0, pitch = 0; const keys = {};
   function walkStart() {
-    if (T.walk) { camera.position.set(T.walk.x, 2.2, T.walk.z); yaw = T.walk.yaw; pitch = T.walk.pitch; return; }   // stand in front of the first house (the nearest claimed one if any), facing it, so a wall never fills the screen
+    if (T.walk) { camera.position.set(T.walk.x, T.walk.y == null ? 2.2 : T.walk.y, T.walk.z); yaw = T.walk.yaw; pitch = T.walk.pitch; return; }   // stand in front of the first house (the nearest claimed one if any), facing it, so a wall never fills the screen
     const h = houses[(data.claims && data.claims[0] && data.claims[0].house) || 1] || Object.values(houses)[0];
     if (!h) { camera.position.set(center.x, 2.2, roadZ + 18); yaw = 0; pitch = 0; return; }
     const p = new THREE.Vector3(); h.getWorldPosition(p);
@@ -148,7 +179,9 @@
     else {
       camera.up.set(0, 1, 0);
       camera.position.set(center.x + radius * 1.25, 18 + radius * 0.5, center.z - radius * 0.75);
-      controls.target.copy(center); controls.update();
+      controls.target.copy(center);
+      if (T.fly) { camera.position.fromArray(T.fly.position); controls.target.fromArray(T.fly.target); }
+      controls.update();
       $("hint").textContent = "Drag to look around · scroll or pinch to zoom · " + T.verb + " a " + T.thing;
     }
   }
@@ -181,7 +214,7 @@
   $("pclose").onclick = () => ($("panel").style.display = "none");
   if ($("rbtn")) { $("rbtn").onclick = () => ($("residents").style.display = "block"); $("rclose").onclick = () => ($("residents").style.display = "none"); }
 
-  function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+  function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; if (T.fly && T.fly.lens) camera.fov = 2 * Math.atan(18 / T.fly.lens / camera.aspect) * 180 / Math.PI; camera.updateProjectionMatrix(); }
   addEventListener("resize", resize); resize();
   let last = performance.now();
   (function loop(t) {
@@ -192,7 +225,7 @@
       const sp = 9 * dt;
       camera.position.x += (-Math.sin(yaw) * f + Math.cos(yaw) * s) * sp;
       camera.position.z += (-Math.cos(yaw) * f - Math.sin(yaw) * s) * sp;
-      camera.position.y = 2.2;
+      camera.position.y = T.walk && T.walk.y != null ? T.walk.y : 2.2;
       camera.rotation.set(pitch, yaw, 0, "YXZ");
     } else controls.update();
     renderer.render(scene, camera);

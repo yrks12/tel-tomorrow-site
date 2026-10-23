@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Treehouse Tomorrow: every subscriber gets a treehouse</title>
+<meta name="description" content="Every subscriber gets a treehouse. Tap a treehouse, name it.">
+<meta property="og:title" content="Treehouse Tomorrow: every subscriber gets a treehouse">
+<meta property="og:description" content="Every subscriber gets a treehouse. Tap a treehouse, name it.">
+<meta property="og:image" content="avatar-treehouse.png">
+<link rel="icon" href="avatar-treehouse.png">
+<style>
+  :root { --ink:#101826; --sun:#ffd84d; --sea:#0d86d9; --card:rgba(16,24,38,.86); --line:rgba(255,255,255,.16); }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--ink); color:#fff; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  header { position:fixed; top:0; left:0; right:0; padding:14px 16px; display:flex; gap:12px; align-items:center; justify-content:space-between; pointer-events:none; }
+  header > * { pointer-events:auto; }
+  h1 { margin:0; font-size:clamp(20px,4.5vw,34px); letter-spacing:.02em; text-transform:uppercase; font-family:Impact,"Anton","Arial Narrow Bold",sans-serif; color:var(--sun); text-shadow:0 2px 0 #000, 0 0 14px rgba(0,0,0,.5); }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:999px; padding:8px 14px; font-size:14px; white-space:nowrap; }
+  .stat b { color:var(--sun); }
+  .btns { position:fixed; left:16px; bottom:56px; display:flex; gap:8px; flex-wrap:wrap; }
+  button,.btn { background:var(--card); color:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 16px; font-size:15px; cursor:pointer; text-decoration:none; }
+  button:hover,.btn:hover { border-color:var(--sun); }
+  .btn.primary { background:var(--sun); color:#111; border-color:var(--sun); font-weight:700; }
+  #panel { position:fixed; right:16px; bottom:56px; width:min(340px,calc(100vw - 32px)); background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; display:none; }
+  #panel h2 { margin:0 0 4px; font-size:20px; }
+  #panel p { margin:6px 0 12px; color:#cfd6e4; font-size:14px; line-height:1.4; }
+  #panel .row { display:flex; gap:8px; }
+  #hint { position:fixed; left:50%; top:76px; transform:translateX(-50%); background:var(--card); border:1px solid var(--line); border-radius:999px; padding:8px 16px; font-size:13px; color:#cfd6e4; text-align:center; max-width:calc(100vw - 32px); }
+  footer { position:fixed; left:0; right:0; bottom:0; padding:10px 16px; font-size:12px; color:#9aa6bb; display:flex; flex-wrap:wrap; gap:6px 16px; justify-content:space-between; background:linear-gradient(transparent, rgba(8,14,24,.82) 55%); }
+  footer a { color:#b9c4da; text-decoration:none; } footer a:hover { color:#fff; text-decoration:underline; }
+  #residents { position:fixed; inset:0; background:rgba(8,14,24,.94); display:none; overflow:auto; padding:70px 16px 80px; z-index:5; }
+  .rhead { position:fixed; top:0; left:0; right:0; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; background:rgba(8,14,24,.96); }
+  .rhead h2 { margin:0; font-size:18px; color:var(--sun); }
+  #rgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; }
+  .rcard { text-align:left; display:block; border-radius:14px; padding:14px; }
+  .rcard b { display:block; font-size:17px; color:#fff; } .rcard i { display:block; font-style:normal; font-size:12px; color:var(--sun); margin:2px 0 6px; }
+  .rcard p { margin:0; font-size:13px; line-height:1.4; color:#cfd6e4; } .rcard.on { border-color:var(--sun); }
+  .sr { position:absolute; left:-9999px; }
+  @media (max-width:560px) { .btns { bottom:84px; } #panel { bottom:150px; left:16px; right:16px; width:auto; } #hint { top:66px; font-size:12px; } }
+</style>
+<style id="world-page-style">
+header { align-items:flex-start; flex-wrap:wrap; gap:6px; } h1 { font-size:23px; } .stat { font-size:12px; padding:6px 10px; }
+#hint { top:150px; width:calc(100% - 32px); border-radius:12px; }
+.world-copy { position:fixed; top:84px; left:16px; right:16px; font-size:14px; text-shadow:0 1px 4px #000; pointer-events:none; } .world-copy p { margin:4px 0; }
+footer { font-size:10px; gap:5px; background:rgba(8,14,24,.88); } .more-worlds { width:100%; line-height:1.8; }
+.btns { bottom:155px; } #panel { bottom:155px; z-index:3; } .btns .primary { max-width:350px; }
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Interactive 3D map of Treehouse Tomorrow; use the buttons below for a text list of treehouses"></canvas>
+<header>
+  <h1>Treehouse Tomorrow</h1>
+  <div class="stat"><b id="day">Day 1</b> &nbsp;·&nbsp; <b id="count">0</b> claimed · <b>8</b> spots</div>
+</header><section class="world-copy"><p>Every subscriber gets a treehouse</p><p>Tap a treehouse, name it</p></section>
+<div id="hint">Drag to look around · scroll or pinch to zoom · tap a treehouse</div>
+<div class="btns">
+  <button id="walk">Walk in</button>
+  <button id="rbtn">Treehouses</button>
+  <a class="btn primary" href="https://www.youtube.com/channel/UCCY-EuKwiRXzEu2YEOPLCfQ?sub_confirmation=1" target="_blank" rel="noopener">Subscribe · claim your spot</a>
+</div>
+<div id="panel" role="dialog" aria-live="polite">
+  <h2 id="ptitle"></h2>
+  <p id="pbody"></p>
+  <div class="row"><a class="btn primary" id="pclaim" href="https://www.youtube.com/channel/UCCY-EuKwiRXzEu2YEOPLCfQ" target="_blank" rel="noopener">Claim your spot</a><button id="pclose">Close</button></div>
+</div>
+<footer>
+  <span>Made with AI tools by an Israeli team. A name appears only if its owner comments it or shows their subscription publicly on YouTube; unclaimed spots stay numbered.</span>
+  <span>
+    <a href="https://www.youtube.com/channel/UCCY-EuKwiRXzEu2YEOPLCfQ" target="_blank" rel="noopener">YouTube</a> ·
+    <a href="https://chairsidereels.com" target="_blank" rel="noopener">Built with Chairside</a> ·
+    <a href="https://shaliach.me" target="_blank" rel="noopener">Shaliach</a> ·
+    <a href="https://villas.yairtech.co.uk" target="_blank" rel="noopener">Villas</a>
+  </span>
+<nav class="more-worlds" aria-label="More worlds">More worlds: <a href="../">City</a> · <a href="../zoo/">Zoo</a> · <a href="../treehouse/">Treehouse</a> · <a href="../deep/">Deep</a> · <a href="../race/">Race</a> · <a href="../castle/">Castle</a></nav>
+</footer>
+<div id="residents" role="dialog" aria-label="Treehouses">
+  <div class="rhead"><h2>Treehouses to claim</h2><button id="rclose">Close</button></div>
+  <div id="rgrid"></div>
+</div>
+<ul class="sr" id="list"></ul>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>window.TT = {"brand": "Treehouse Tomorrow", "thing": "treehouse", "who": "Neighbour", "sky": 5074277, "horizon": 5074277, "sunColor": 16766105, "sunInt": 1.1, "hemiSky": 10926020, "hemiGround": 2637097, "hemiInt": 0.6, "sunEuler": [34.38, -28.65, -37.24], "fly": {"position": [62, 39, 91], "target": [0, 23, -8], "lens": 49, "speed": 0.08}, "walk": {"x": 30, "y": 3, "z": 40, "yaw": 0.65, "pitch": 0.35}, "fog": {"color": 5074277, "near": 90, "far": 340}, "exposure": 0.55, "pointLights": [{"position": [12.8, 19, -5], "color": 16759654, "intensity": 2, "distance": 24}], "data": "treehouse.json", "glb": "assets/treehouse.glb", "slots": 8, "slotNodes": ["slot_1", "slot_2", "slot_3", "slot_4", "slot_5", "slot_6", "slot_7", "slot_8"], "staticEnd": true, "verb": "tap", "empty": "Hi Neighbour #N! Comment your name under the newest Treehouse Tomorrow Short to claim your spot."};</script>
+<script src="../app.js"></script>
+</body>
+</html>
