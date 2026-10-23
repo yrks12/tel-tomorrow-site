@@ -76,6 +76,23 @@ header {flex-wrap:wrap;gap:6px} .stat {font-size:12px;padding:6px 10px} #panel {
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+// tel_endstate.py: sun RGB (1,.66,.35), Euler (76,-15,-145),
+// world strength .10, Nishita sky elevation 3 degrees / air density 1.5.
+// Convert the Blender sun energy 1.4 to the viewer's non-physical light scale.
+window.TT = {
+  liveSlots:true, exposure:.65, gltfLightScale:0,
+  fly:{position:[100,85,100],target:[12,14,-22],lens:62,desktopLens:48,speed:.08},
+  sky:0x818b95, horizon:0xae8270,
+  skyGradient:['#858b91','#b39477','#a57668'],
+  fog:{color:0x85877d,near:450,far:1400},
+  sunEuler:[76,-15,-145], sunColor:0xffa859, sunInt:.75,
+  hemiSky:0x8896a5, hemiGround:0x585132, hemiInt:.26,
+  shadowBias:-.001, shadowNormalBias:1.2,
+  windowEmission:{color:[1,.24,.075],intensity:2.8},
+  windowSpill:{color:0xffb34f,opacity:.32,size:22,haloSize:2.2}
+};
+</script>
 <script src="app.js"></script>
 </body>
 </html>

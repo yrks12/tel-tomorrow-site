@@ -17,6 +17,14 @@
   const scene = new THREE.Scene();
   const SKY = T.sky, HORIZON = T.horizon;           // the render's blue sky with a warm low horizon
   scene.background = new THREE.Color(SKY);
+  if (T.skyGradient) {
+    const skyCanvas = document.createElement('canvas'); skyCanvas.width=2; skyCanvas.height=512;
+    const ctx=skyCanvas.getContext('2d'), gradient=ctx.createLinearGradient(0,0,0,180);
+    T.skyGradient.forEach((color,i)=>gradient.addColorStop(i/(T.skyGradient.length-1),color));
+    ctx.fillStyle=gradient; ctx.fillRect(0,0,2,512);
+    const texture=new THREE.CanvasTexture(skyCanvas); texture.encoding=THREE.sRGBEncoding;
+    scene.background=texture;
+  }
   scene.fog = new THREE.Fog(T.fog ? T.fog.color : HORIZON, T.fog ? T.fog.near : 160, T.fog ? T.fog.far : 520);
   const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 1200);   // 35 mm lens, same as the Shorts
 
@@ -165,6 +173,57 @@
         if (mats.some(m => /sage lawns|deep teal sea/.test(m.name))) o.castShadow = false;
       });
     }
+    if (T.windowEmission) {
+      const seen=new Set();
+      gltf.scene.traverse(o=>{
+        if (!o.isMesh) return;
+        (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{
+          if (seen.has(m) || !/warm windows/.test(m.name)) return;
+          seen.add(m); m.emissive.fromArray(T.windowEmission.color);
+          m.emissiveIntensity=T.windowEmission.intensity;
+        });
+      });
+    }
+    if (T.windowSpill) {
+      const cfg=T.windowSpill, cv=document.createElement('canvas'); cv.width=cv.height=64;
+      const ctx=cv.getContext('2d'), gradient=ctx.createRadialGradient(32,32,0,32,32,32);
+      gradient.addColorStop(0,'rgba(255,255,255,.8)'); gradient.addColorStop(.3,'rgba(255,255,255,.4)'); gradient.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle=gradient; ctx.fillRect(0,0,64,64);
+      const mat=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),color:cfg.color,transparent:true,opacity:cfg.opacity,blending:THREE.AdditiveBlending,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1});
+      const geometry=new THREE.PlaneGeometry(cfg.size,cfg.size);
+      if (cfg.haloSize) {
+        const haloMat=new THREE.PointsMaterial({map:mat.map,color:cfg.color,size:cfg.haloSize,transparent:true,opacity:.22,blending:THREE.AdditiveBlending,depthWrite:false});
+        // Bias halo depth toward the camera so a wall cannot slice its soft
+        // disc diagonally; keep depth testing against other buildings.
+        haloMat.onBeforeCompile=shader=>{shader.vertexShader=shader.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n gl_Position = projectionMatrix * vec4(mvPosition.xyz + vec3(0.0,0.0,1.4),1.0);');};
+        const sources=[];
+        gltf.scene.traverse(o=>{if(o.isMesh && !Array.isArray(o.material) && /warm windows/.test(o.material.name)) sources.push(o);});
+        sources.forEach(o=>{
+          const g=o.geometry, index=g.index, pos=g.attributes.position, points=[];
+          // The exported window rectangles use two triangles each. A small soft
+          // halo at each rectangle gives emission a visible edge without a pass.
+          for(let i=0;i<(index?index.count:pos.count);i+=6) {
+            const center=new THREE.Vector3(), normal=new THREE.Vector3(); let count=0;
+            for(let j=i;j<Math.min(i+6,index?index.count:pos.count);j++) {
+              const vertex=index?index.getX(j):j;
+              center.add(new THREE.Vector3().fromBufferAttribute(pos,vertex));
+              if(g.attributes.normal) normal.add(new THREE.Vector3().fromBufferAttribute(g.attributes.normal,vertex)); count++;
+            }
+            center.divideScalar(count).addScaledVector(normal.normalize(),.12); points.push(center.x,center.y,center.z);
+          }
+          const geometry=new THREE.BufferGeometry(); geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));
+          const halo=new THREE.Points(geometry,haloMat); halo.name='window halo'; o.add(halo);
+        });
+      }
+      Object.values(houses).forEach(n=>{
+        // Parent the spill to its house so unoccupied slots never emit light.
+        const spill=new THREE.Mesh(geometry,mat); spill.name='window light spill';
+        const box=new THREE.Box3().setFromObject(n), p=box.getCenter(new THREE.Vector3());
+        p.y=.12; spill.position.copy(n.worldToLocal(p));
+        spill.quaternion.copy(n.getWorldQuaternion(new THREE.Quaternion()).invert()).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2));
+        n.add(spill);
+      });
+    }
     scene.add(gltf.scene);
     window.__TT = {scene, houses, camera, data, ready:true};
     const pts = Object.values(houses).filter(n => !T.liveSlots || n.visible).map((n) => { const v = new THREE.Vector3(); n.getWorldPosition(v); return v; });
@@ -177,8 +236,9 @@
     sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
     const sh = T.liveSlots ? Math.max(50, radius * .85) : Math.max(60, radius * 1.4);
     Object.assign(sun.shadow.camera, { left: -sh, right: sh, top: sh, bottom: -sh, near: 1, far: 400 });
-    sun.shadow.camera.updateProjectionMatrix(); sun.shadow.bias = -0.0005;
+    sun.shadow.camera.updateProjectionMatrix(); sun.shadow.bias = T.shadowBias == null ? -0.0005 : T.shadowBias;
     if (T.liveSlots) { sun.shadow.mapSize.set(4096,4096); sun.shadow.normalBias=.6; }
+    if (T.shadowNormalBias != null) sun.shadow.normalBias=T.shadowNormalBias;
     if (T.liveSlots) gltf.scene.traverse(o => {
       if (o.isDirectionalLight) {
         o.castShadow=true; o.shadow.mapSize.set(4096,4096);
@@ -275,7 +335,7 @@
   $("pclose").onclick = () => ($("panel").style.display = "none");
   if ($("rbtn")) { $("rbtn").onclick = () => ($("residents").style.display = "block"); $("rclose").onclick = () => ($("residents").style.display = "none"); }
 
-  function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; if (T.fly && T.fly.lens) camera.fov = 2 * Math.atan(18 / T.fly.lens / (T.liveSlots ? Math.min(camera.aspect,.72) : camera.aspect)) * 180 / Math.PI; camera.updateProjectionMatrix(); }
+  function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; if (T.fly && T.fly.lens) camera.fov = 2 * Math.atan(18 / (camera.aspect>1 && T.fly.desktopLens ? T.fly.desktopLens : T.fly.lens) / (T.liveSlots ? Math.min(camera.aspect,.72) : camera.aspect)) * 180 / Math.PI; camera.updateProjectionMatrix(); }
   addEventListener("resize", resize); resize();
   let last = performance.now();
   (function loop(t) {
